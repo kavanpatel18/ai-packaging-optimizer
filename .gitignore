@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+venv/
+*.env
+
+# Data - Do NOT upload large data files
+*.csv
+
+# Model - Do NOT upload large model files
+*.h5
+*.model
+
+# Images - Do NOT upload your image dataset
+*.png
+*.jpeg
+*.jpg
+
+# IDE files
+.idea/
