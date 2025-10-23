@@ -62,4 +62,4 @@ if __name__ == '__main__':
     OUTPUT_FILE = 'MASTER_product_dataset_prepared.csv'
 
     # Run the preparation process
-    prepare_dataset(INPUT_FILE, OUTPUT_FILE)s
+    prepare_dataset(INPUT_FILE, OUTPUT_FILE)
