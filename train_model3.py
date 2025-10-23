@@ -1,4 +1,4 @@
-# filename: train_model.py (Definitive Final Version)
+# filename: train_model.py (Fast Test Version)
 
 import pandas as pd
 import tensorflow as tf
@@ -14,8 +14,8 @@ INPUT_SIZE = (224, 224)
 BATCH_SIZE = 32
 PREPARED_CSV = 'final_dataset_with_paths.csv'
 IMAGE_ROOT_DIR = '.'
-INITIAL_EPOCHS = 20  # Epochs for the "Warm-up" stage
-FINE_TUNE_EPOCHS = 50 # Max Epochs for the "Fine-tuning" stage
+INITIAL_EPOCHS = 15
+FINE_TUNE_EPOCHS = 35
 
 
 def train_dimension_model(input_csv_path, image_directory):
@@ -25,19 +25,21 @@ def train_dimension_model(input_csv_path, image_directory):
     """
     
     # --- 2. Load and Split the Data ---
-    print(f"Step 1: Loading prepared data from '{PREPARED_CSV}'...")
-    try:
-        df = pd.read_csv(input_csv_path)
-    except FileNotFoundError:
-        print(f"FATAL ERROR: The file was not found at '{input_csv_path}'")
-        return
-        
+    print("Step 1: Loading prepared data...")
+    df = pd.read_csv(input_csv_path)
+    
+    # --- !! THIS IS THE NEW LINE FOR A FAST TEST !! ---
+    print("\n!!! --- FAST TEST RUN: USING ONLY 25% OF DATA --- !!!\n")
+    df = df.sample(frac=0.25, random_state=42)
+    # --- !! END OF NEW LINE !! ---
+    
     train_df, validation_df = train_test_split(df, test_size=0.2, random_state=42)
     print(f"Training set size: {len(train_df)} images")
     print(f"Validation set size: {len(validation_df)} images")
 
-    # --- 3. Set Up Image Data Generators (with Augmentation) ---
+    # --- 3. Set Up Image Data Generators ---
     print("\nStep 2: Setting up image data generators...")
+    # (Rest of the script is identical)
     train_datagen = ImageDataGenerator(
         rotation_range=20,
         width_shift_range=0.2,
@@ -65,8 +67,6 @@ def train_dimension_model(input_csv_path, image_directory):
     # --- 4. Build the Transfer Learning Model ---
     print("\nStep 3: Building the Transfer Learning model...")
     base_model = MobileNetV2(input_shape=(*INPUT_SIZE, 3), include_top=False, weights='imagenet')
-    
-    # Start with the base model frozen
     base_model.trainable = False
     
     x = base_model.output
@@ -76,7 +76,6 @@ def train_dimension_model(input_csv_path, image_directory):
     predictions = Dense(3)(x) 
     model = Model(inputs=base_model.input, outputs=predictions)
 
-    # Compile the model with MAE loss
     model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
         loss='mean_absolute_error',
@@ -84,26 +83,20 @@ def train_dimension_model(input_csv_path, image_directory):
     )
 
     # --- 5. Stage 1: Train the "Head" (Warm-up) ---
-    print(f"\n--- STAGE 1: Training the 'Head' (Base Model Frozen) for {INITIAL_EPOCHS} epochs ---")
-    
+    print("\n--- STAGE 1: Training the 'Head' (Base Model Frozen) ---")
     history = model.fit(
         train_generator,
         epochs=INITIAL_EPOCHS, 
         validation_data=validation_generator
     )
-    
-    print("\nWarm-up complete. Current val_mean_absolute_error: ", history.history['val_mean_absolute_error'][-1])
 
     # --- 6. Stage 2: Fine-Tuning (Unfreeze the "Brain") ---
     print("\n--- STAGE 2: Fine-Tuning (Unfreezing Top Layers) ---")
-    
     base_model.trainable = True
     fine_tune_at = 100 
-    
     for layer in base_model.layers[:fine_tune_at]:
         layer.trainable = False
         
-    # Re-compile the model with a VERY low learning rate
     model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=1e-5), # 0.00001
         loss='mean_absolute_error',
@@ -111,12 +104,9 @@ def train_dimension_model(input_csv_path, image_directory):
     )
     model.summary()
     
-    # Define Callbacks for the fine-tuning stage
-    # --- !! FINAL TWEAK: Increased patience !! ---
-    early_stopping = EarlyStopping(monitor='val_mean_absolute_error', patience=10, restore_best_weights=True)
-    reduce_lr = ReduceLROnPlateau(monitor='val_mean_absolute_error', factor=0.2, patience=3, min_lr=1e-6)
+    early_stopping = EarlyStopping(monitor='val_mean_absolute_error', patience=5, restore_best_weights=True)
+    reduce_lr = ReduceLROnPlateau(monitor='val_mean_absolute_error', factor=0.2, patience=2, min_lr=1e-6)
 
-    # Continue training (fine-tuning)
     history_fine_tune = model.fit(
         train_generator,
         epochs=INITIAL_EPOCHS + FINE_TUNE_EPOCHS,
@@ -127,8 +117,8 @@ def train_dimension_model(input_csv_path, image_directory):
 
     # --- 7. Save the Trained Model ---
     print("\nStep 6: Saving the new, fine-tuned model...")
-    model.save('product_dimension_model.keras')
-    print("New model saved successfully as 'product_dimension_model.keras'")
+    model.save('product_dimension_model_TEST.keras')
+    print("New TEST model saved successfully as 'product_dimension_model_TEST.keras'")
 
 
 if __name__ == '__main__':
